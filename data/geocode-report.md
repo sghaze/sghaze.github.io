@@ -2,8 +2,8 @@
 
 Written by `scripts/geocode.py` each time the data is rebuilt.
 
-- Shelters: 382
-- Located: 382
+- Shelters: 379
+- Located: 379
 - Need review: 3
 
 Each row below is a shelter whose PDF address and postal code disagree, or that OneMap could not find.

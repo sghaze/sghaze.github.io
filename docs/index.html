@@ -32,6 +32,7 @@
   </header>
 
   <main class="wrap">
+    <aside id="closed-notice" class="notice notice-closed" role="status" hidden></aside>
     <form id="search" class="search" novalidate>
       <label for="query">Postal code or address</label>
       <div class="search-row">
@@ -62,6 +63,7 @@
 
     <section id="results" class="results" aria-labelledby="results-title" hidden>
       <h2 id="results-title" tabindex="-1"></h2>
+      <p id="results-closed" class="results-closed" hidden></p>
       <p id="results-note" class="help"></p>
       <section id="air" class="air" aria-label="Air quality" aria-live="polite" hidden></section>
       <p id="results-disclaimer" class="results-disclaimer" role="note">Not an official service; details may be wrong. Check with the venue before going. Emergency: call 995. <a href="#disclaimer">Disclaimer</a></p>

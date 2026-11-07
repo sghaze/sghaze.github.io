@@ -77,9 +77,12 @@ jobs:
         run: |
           title="Could not check PA's haze shelter page"
           existing=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
-          if [ -z "$existing" ]; then
-            gh issue create --title "$title" --body "The scheduled check couldn't read https://www.pa.gov.sg/our-network/community-clubs/shelters/ or find the list's PDF link on it. PA may have moved or redesigned the page. See the run log: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          if [ -n "$existing" ]; then
+            # Already reported: stay quiet (no email every 3 hours) until it's fixed.
+            echo "::warning::Still can't check PA's page; see issue #$existing."
+            exit 0
           fi
+          gh issue create --title "$title" --body "@${{ github.actor }} The scheduled check couldn't read https://www.pa.gov.sg/our-network/community-clubs/shelters/ or find the list's PDF link on it, and PA's sitemap has no other shelter page. Either PA moved or redesigned the page, or it took the page down because the shelters were stood down. Checks continue every 3 hours without further emails, and this issue closes itself when the page is back. See the run log: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           echo "::error::Could not check PA's page. See the issue."
           exit 1
 

@@ -40,7 +40,31 @@
     browse: $('browse'),
     filter: $('filter'),
     browseList: $('browse-list'),
+    closedNotice: $('closed-notice'),
+    resultsClosed: $('results-closed'),
   };
+
+  // Whether the authorities have the shelters open, set by the owner with the
+  // "Set shelter status" workflow (docs/status.json). No file means no notice.
+  fetch('status.json', { cache: 'no-cache' })
+    .then((res) => (res.ok ? res.json() : null))
+    .then((status) => {
+      if (!status || status.state !== 'closed') return;
+      const since = status.since ? ` since ${status.since}` : '';
+      els.closedNotice.replaceChildren();
+      const strong = document.createElement('strong');
+      strong.textContent = `Haze shelters are currently closed${since}.`;
+      els.closedNotice.append(strong, ` ${status.note || 'The authorities have stood them down. This list shows where shelters open when they are activated again.'} `);
+      const link = document.createElement('a');
+      link.href = 'https://www.haze.gov.sg/';
+      link.rel = 'noopener';
+      link.textContent = 'haze.gov.sg';
+      els.closedNotice.append('Latest: ', link, '.');
+      els.closedNotice.hidden = false;
+      els.resultsClosed.textContent = `Shelters are currently closed${since}. These are where they open when activated.`;
+      els.resultsClosed.hidden = false;
+    })
+    .catch(() => {});
 
   let allShelters = [];
   let mappedShelters = [];

@@ -74,6 +74,14 @@ docs/  (index.html, app.js, style.css, shelters.json, postal-areas.json) ──�
 
 If PA's page can't be read, you get an issue and email about that instead.
 
+**Shelters open or closed.** When the authorities open or stand down the shelters, run **Actions → Set
+shelter status → Run workflow**, choose `open` or `closed`, and run it. `closed` shows a notice at the
+top of the site and above search results; `open` removes it. It writes `docs/status.json`.
+
+If PA takes its shelter page down (as it did when the shelters closed on 7 November 2026), the
+watcher opens one "Could not check" issue and emails you once, then keeps checking every 3 hours
+without further emails. The issue closes itself when the page is back.
+
 GitHub switches off scheduled workflows in a public repository after 60 days with no activity, so
 `Keep scheduled checks running` (`.github/workflows/keepalive.yml`) commits the date and time to
 `.github/last-keepalive` on the 1st of each month.

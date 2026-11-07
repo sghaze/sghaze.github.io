@@ -59,6 +59,19 @@ jobs:
             cat watch-output/summary.md >> "$GITHUB_STEP_SUMMARY"
           fi
 
+      - name: Close earlier "could not check" alerts
+        if: steps.watch.outputs.exit == '0'
+        run: |
+          page=$(jq -r .page watch-output/result.json)
+          note="The check works again (PA's page: $page)."
+          if [ "$(jq -r .page_moved watch-output/result.json)" = "true" ]; then
+            note="PA moved its shelter page to $page. The check found it there and works again."
+            echo "::warning::$note"
+          fi
+          for n in $(gh issue list --state open --search "\"Could not check PA's haze shelter page\" in:title" --json number --jq '.[].number'); do
+            gh issue close "$n" --comment "$note"
+          done
+
       - name: Alert that PA's page could not be checked
         if: steps.watch.outputs.exit != '0'
         run: |

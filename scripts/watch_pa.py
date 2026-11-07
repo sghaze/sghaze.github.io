@@ -22,10 +22,12 @@ import os
 import re
 import subprocess
 import sys
+import urllib.error
 import urllib.parse
 import urllib.request
 
 PAGE_URL = "https://www.pa.gov.sg/our-network/community-clubs/shelters/"
+SITEMAP_URL = "https://www.pa.gov.sg/sitemap.xml"
 CURRENT_PDF = "data/source.pdf"
 CURRENT_CSV = "data/shelters.csv"
 UA = "Mozilla/5.0 (compatible; haze-shelter-finder/1.0; +https://sghaze.github.io/)"
@@ -35,6 +37,45 @@ def fetch(url):
     req = urllib.request.Request(url, headers={"User-Agent": UA})
     with urllib.request.urlopen(req, timeout=60) as resp:
         return resp.read()
+
+
+def sitemap_pages(url, depth=0):
+    """Every page address in PA's sitemap (following one level of sub-sitemaps)."""
+    locs = re.findall(r"<loc>\s*([^<\s]+)\s*</loc>", fetch(url).decode("utf-8", "replace"))
+    pages = []
+    for loc in locs:
+        loc = html.unescape(loc)
+        if loc.endswith(".xml") and depth == 0:
+            try:
+                pages += sitemap_pages(loc, 1)
+            except Exception as exc:  # noqa: BLE001 - skip an unreadable sub-sitemap
+                print(f"  could not read {loc}: {exc}")
+        else:
+            pages.append(loc)
+    return pages
+
+
+def find_page():
+    """PA's shelter page and its HTML. If the usual address is gone, look for the
+    page in PA's sitemap, so a moved page doesn't stop the check."""
+    try:
+        return PAGE_URL, fetch(PAGE_URL).decode("utf-8", "replace")
+    except urllib.error.HTTPError as exc:
+        if exc.code not in (404, 410):
+            raise
+        print(f"{PAGE_URL} returned {exc.code}; looking for the page in PA's sitemap.")
+    candidates = [u for u in sitemap_pages(SITEMAP_URL) if re.search(r"haze|shelter", u, re.I)]
+    print("Sitemap pages mentioning haze or shelter:", *candidates or ["none"], sep="\n  ")
+    for url in candidates:
+        try:
+            page = fetch(url).decode("utf-8", "replace")
+        except Exception as exc:  # noqa: BLE001 - try the next candidate
+            print(f"  {url}: {exc}")
+            continue
+        if find_list_link(page):
+            print(f"PA's shelter page has moved to {url}")
+            return url, page
+    raise RuntimeError("the page is gone and no page in PA's sitemap links to a shelter list")
 
 
 def find_list_link(page_html):
@@ -108,7 +149,7 @@ def main():
     os.makedirs(out, exist_ok=True)
 
     try:
-        page = fetch(PAGE_URL).decode("utf-8", "replace")
+        page_url, page = find_page()
     except Exception as exc:  # noqa: BLE001 - report any network failure
         print(f"Could not read PA's page: {exc}")
         sys.exit(2)
@@ -116,7 +157,7 @@ def main():
     if not link:
         print("No PDF link found on PA's page. The page layout may have changed.")
         sys.exit(2)
-    url = urllib.parse.urljoin(PAGE_URL, link)
+    url = urllib.parse.urljoin(page_url, link)
     updated = last_updated(page)
 
     try:
@@ -137,13 +178,13 @@ def main():
     result = {
         "changed": new_sha != current_sha,
         "url": url,
-        "page": PAGE_URL,
+        "page": page_url, "page_moved": page_url != PAGE_URL,
         "page_last_updated": updated,
         "sha256": new_sha,
         "size_kb": round(len(pdf) / 1024, 1),
     }
     lines = [
-        f"PA's page: {PAGE_URL}" + (f" (last updated {updated})" if updated else ""),
+        f"PA's page: {page_url}" + (f" (last updated {updated})" if updated else ""),
         f"List PDF: {url} ({result['size_kb']} KB)",
         "",
     ]

@@ -40,7 +40,8 @@
     browse: $('browse'),
     filter: $('filter'),
     browseList: $('browse-list'),
-    closedNotice: $('closed-notice'),
+    closedBanner: $('closed-banner'),
+    closedDetail: $('closed-detail'),
     resultsClosed: $('results-closed'),
   };
 
@@ -50,21 +51,35 @@
     .then((res) => (res.ok ? res.json() : null))
     .then((status) => {
       if (!status || status.state !== 'closed') return;
-      const since = status.since ? ` since ${status.since}` : '';
-      els.closedNotice.replaceChildren();
-      const strong = document.createElement('strong');
-      strong.textContent = `Haze shelters are currently closed${since}.`;
-      els.closedNotice.append(strong, ` ${status.note || 'The authorities have stood them down. This list shows where shelters open when they are activated again.'} `);
+      sheltersClosed = true;
+      const since = status.since ? ` on ${status.since}` : '';
       const link = document.createElement('a');
       link.href = 'https://www.haze.gov.sg/';
       link.rel = 'noopener';
       link.textContent = 'haze.gov.sg';
-      els.closedNotice.append('Latest: ', link, '.');
-      els.closedNotice.hidden = false;
-      els.resultsClosed.textContent = `Shelters are currently closed${since}. These are where they open when activated.`;
+      els.closedDetail.replaceChildren(
+        `The authorities stood them down${since}. Don't go to a shelter expecting it to be open. `
+        + 'You can still look up where shelters are, for when they reopen. Latest: ', link, '.');
+      els.closedBanner.hidden = false;
+      const heading = document.querySelector('.site-header h1');
+      if (heading) heading.textContent = 'Singapore haze shelter locations';
+      document.title = `Closed – ${document.title}`;
+      els.resultsClosed.textContent = 'All shelters are currently closed. These are where they open when activated.';
       els.resultsClosed.hidden = false;
+      // Results shown before this arrived (e.g. a shared ?postal= link): redraw them.
+      if (current && !els.results.hidden) {
+        els.title.textContent = closedTitle(els.title.textContent);
+        els.list.replaceChildren();
+        current.shown = 0;
+        renderMore();
+      }
     })
     .catch(() => {});
+
+  let sheltersClosed = false;
+  const closedTitle = (title) => (title === 'Nearest shelters'
+    ? 'Shelter locations near you (all closed)'
+    : `${title.replace(/ \(all closed\)$/, '')} (all closed)`);
 
   let allShelters = [];
   let mappedShelters = [];
@@ -615,7 +630,7 @@
         .map((s) => ({ s, d: distanceKm(origin.lat, origin.lng, s.lat, s.lng) }))
         .sort((a, b) => a.d - b.d),
     };
-    els.title.textContent = title;
+    els.title.textContent = sheltersClosed ? closedTitle(title) : title;
     els.note.textContent = note;
     els.list.replaceChildren();
     renderMore();
@@ -646,11 +661,13 @@
   }
 
   function card(s, km, index) {
-    const li = el('li', index === 0 && !current.approx ? 'card nearest' : 'card');
+    const highlight = index === 0 && !current.approx && !sheltersClosed;
+    const li = el('li', highlight ? 'card nearest' : 'card');
 
     const top = el('div', 'card-top');
     const h3 = el('h3');
-    if (index === 0 && !current.approx) h3.appendChild(el('span', 'badge', 'Nearest'));
+    if (sheltersClosed) h3.appendChild(el('span', 'badge badge-closed', 'Closed'));
+    else if (highlight) h3.appendChild(el('span', 'badge', 'Nearest'));
     h3.appendChild(document.createTextNode(s.name));
     top.append(h3, el('span', 'distance', formatDistance(km, current.approx)));
 

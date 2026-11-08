@@ -98,7 +98,13 @@ try {
 
   const res = await page.goto(SITE, { waitUntil: 'networkidle' });
   check(res && res.ok(), 'home page loads', `HTTP ${res && res.status()}`);
-  check((await page.title()).startsWith('Haze Shelter Finder'), 'page title', await page.title());
+  check(/^(Closed – )?Haze Shelter Finder/.test(await page.title()), 'page title', await page.title());
+  // When docs/status.json says closed, the red banner must show.
+  const status = await page.evaluate(async () => (await fetch('status.json', { cache: 'no-store' })).json().catch(() => null)).catch(() => null);
+  if (status?.state === 'closed') {
+    const banner = await page.waitForSelector('#closed-banner:not([hidden])', { timeout: 5000 }).catch(() => null);
+    check(Boolean(banner), 'closed banner shows while shelters are closed', status.since || '');
+  }
 
   const data = await page.evaluate(async () => (await fetch('shelters.json', { cache: 'no-store' })).json());
   const mapped = data.shelters.filter((s) => typeof s.lat === 'number');
